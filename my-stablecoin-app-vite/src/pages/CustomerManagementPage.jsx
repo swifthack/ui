@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusCircle, Edit, Shield, Trash2 } from 'lucide-react';
 import CustomerFormModal from '../components/CustomerFormModal.jsx';
 
-const CustomerManagementPage = ({ customers, onSaveCustomer, onDeleteCustomer, onUpdateCustomerWallets }) => {
+const CustomerManagementPage = ({ onSaveCustomer, onDeleteCustomer, onUpdateCustomerWallets }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null); // Holds data of customer being edited
 
@@ -10,6 +10,30 @@ const CustomerManagementPage = ({ customers, onSaveCustomer, onDeleteCustomer, o
     setCurrentCustomer(null); // Clear any previous customer data for "Add" mode
     setIsModalOpen(true);
   };
+
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/customers', {
+      headers: {
+        'accept': '*/*'
+      }
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Network response was not ok');
+        return res.json();
+      })
+      .then((data) => {
+        setCustomers(data.data || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
 
   const handleEditCustomerClick = (customer) => {
     setCurrentCustomer(customer); // Set customer data for "Edit" mode
@@ -64,23 +88,23 @@ const CustomerManagementPage = ({ customers, onSaveCustomer, onDeleteCustomer, o
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">{
-              customers.map((customer) => (
-                <tr key={customer.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.organization}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.glei || 'N/A'}</td>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {customers.map((customer) => (
+                <tr key={customer.CUST_ID}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.CUST_ID}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.UserName || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.email || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.organization || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.GLEI || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                       ${customer.status === 'Active' ? 'bg-green-100 text-green-800' :
                         customer.status === 'Suspended' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {customer.status}
+                      {customer.status || '-'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.wallets}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.lastLogin}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{customer.wallets || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{customer.last_login || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => handleEditCustomerClick(customer)}
@@ -91,7 +115,7 @@ const CustomerManagementPage = ({ customers, onSaveCustomer, onDeleteCustomer, o
                     </button>
                     {customer.status === 'Active' ? (
                       <button
-                        onClick={() => onUpdateCustomerWallets(customer.id, 'suspend')} // Placeholder action
+                        onClick={() => onUpdateCustomerWallets(customer.CUST_ID, 'suspend')} // Placeholder action
                         className="text-red-600 hover:text-red-900 mr-3 inline-flex items-center"
                         title="Suspend Customer"
                       >
@@ -99,7 +123,7 @@ const CustomerManagementPage = ({ customers, onSaveCustomer, onDeleteCustomer, o
                       </button>
                     ) : (
                       <button
-                        onClick={() => onUpdateCustomerWallets(customer.id, 'activate')} // Placeholder action
+                        onClick={() => onUpdateCustomerWallets(customer.CUST_ID, 'activate')} // Placeholder action
                         className="text-green-600 hover:text-green-900 mr-3 inline-flex items-center"
                         title="Activate Customer"
                       >
@@ -107,7 +131,7 @@ const CustomerManagementPage = ({ customers, onSaveCustomer, onDeleteCustomer, o
                       </button>
                     )}
                     <button
-                      onClick={() => onDeleteCustomer(customer.id)}
+                      onClick={() => onDeleteCustomer(customer.CUST_ID)}
                       className="text-gray-600 hover:text-gray-900 inline-flex items-center"
                       title="Delete Customer"
                     >

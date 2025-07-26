@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
+import { sendPaymentApi } from './paymentApi';
+import CustomAlert from '../components/CustomAlert';
 import { Send, QrCode } from 'lucide-react';
 
 const PaymentsPage = () => {
   const [sendAmount, setSendAmount] = useState('');
   const [sendRecipient, setSendRecipient] = useState('');
   const [sendStablecoin, setSendStablecoin] = useState('USDC');
-  const [senderWallet, setSenderWallet] = useState('USDC Wallet'); // New state for sender wallet
-  const [bankName, setBankName] = useState(''); // New state for bank name
-  const [recipientName, setRecipientName] = useState(''); // New state for recipient name
+  const [senderWallet, setSenderWallet] = useState('USDC Wallet');
+  const [bankName, setBankName] = useState('');
+  const [recipientName, setRecipientName] = useState('');
   const [receiveStablecoin, setReceiveStablecoin] = useState('USDC');
-  const [walletAddress, setWalletAddress] = useState('0xAbCdEf1234567890AbCdEf1234567890AbCdEf12'); // Mock address
+  const [walletAddress, setWalletAddress] = useState('0xAbCdEf1234567890AbCdEf1234567890AbCdEf12');
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [sendSuccess, setSendSuccess] = useState('');
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
   // Mock sender wallets data - should ideally come from a global state or API
   const senderWallets = [
@@ -18,17 +25,38 @@ const PaymentsPage = () => {
     { id: 'dai_wallet', name: 'DAI Wallet (0x...90ab)', currency: 'DAI' },
   ];
 
-  const handleSendPayment = (e) => {
+  const handleSendPayment = async (e) => {
     e.preventDefault();
-    // In a real app, you would integrate with a blockchain wallet or API here
-    console.log(`Sending ${sendAmount} ${sendStablecoin} from ${senderWallet} to ${recipientName} (${sendRecipient}) via ${bankName}`);
-    alert(`Payment of ${sendAmount} ${sendStablecoin} from ${senderWallet} to ${recipientName} (${sendRecipient}) via ${bankName} initiated.`);
-    setSendAmount('');
-    setSendRecipient('');
-    setRecipientName('');
-    setBankName('');
-    // Optionally reset sender wallet to default or first option
-    setSenderWallet('USDC Wallet');
+    setSendLoading(true);
+    setSendError('');
+    setSendSuccess('');
+    // Compose payload from form data
+    const payload = {
+      transaction_id: Date.now(), // Use timestamp as a simple unique id
+      payer_name: senderWallet, // You may want to use a real name if available
+      payer_address: senderWallet.match(/\((0x[^)]+)\)/)?.[1] || '',
+      payer_bank: bankName,
+      stablecoin_type: sendStablecoin,
+      amount: sendAmount,
+      payee_name: recipientName,
+      payee_address: sendRecipient,
+      payee_bank: '', // Add a field for payee bank if you have it in the form
+    };
+    try {
+      const result = await sendPaymentApi(payload);
+      setSendSuccess('Payment sent successfully!');
+      setShowSuccessAlert(true);
+      setSendAmount('');
+      setSendRecipient('');
+      setRecipientName('');
+      setBankName('');
+      setSenderWallet('USDC Wallet');
+    } catch (err) {
+      setSendError(err.message || 'Failed to send payment');
+      setShowErrorAlert(true);
+    } finally {
+      setSendLoading(false);
+    }
   };
 
   const handleCopyAddress = () => {
@@ -53,6 +81,10 @@ const PaymentsPage = () => {
             <Send size={20} className="mr-2 text-indigo-600" /> Send Payment
           </h3>
           <form onSubmit={handleSendPayment} className="space-y-4">
+            {/* Error popup is now shown via CustomAlert, not here */}
+            {sendSuccess && (
+              <div className="text-green-600 text-sm">{sendSuccess}</div>
+            )}
             {/* Sender Wallet Selection */}
             <div>
               <label htmlFor="senderWallet" className="block text-sm font-medium text-gray-700 mb-1">Sender Wallet</label>
@@ -140,9 +172,10 @@ const PaymentsPage = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50"
+            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 disabled:opacity-60"
+            disabled={sendLoading}
           >
-            Send Payment
+            {sendLoading ? 'Sending...' : 'Send Payment'}
           </button>
         </form>
       </div>
@@ -186,6 +219,18 @@ const PaymentsPage = () => {
           </div>
         </div>
       </div>
+      <CustomAlert
+        open={showErrorAlert}
+        onClose={() => setShowErrorAlert(false)}
+        type="error"
+        message={sendError}
+      />
+      <CustomAlert
+        open={showSuccessAlert}
+        onClose={() => setShowSuccessAlert(false)}
+        type="success"
+        message={sendSuccess}
+      />
     </div>
     </div>
   );
