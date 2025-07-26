@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Wallet, DollarSign, Clock, Users } from 'lucide-react';
+import { User, Wallet, DollarSign, Clock, Users,Shield } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const BankAdminDashboardPage = () => {
