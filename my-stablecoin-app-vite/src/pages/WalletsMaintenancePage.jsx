@@ -50,7 +50,7 @@ const WalletsMaintenancePage = ({ customers, onAddCustomerWallet }) => {
   });
 
   const handleSaveWallet = (newWallet, customerId) => {
-    setAllWallets([...allWallets, newWallet]);
+    setAllWallets([newWallet, ...allWallets]); // Add new wallet to the top
     onAddCustomerWallet(customerId); // Notify App to update customer's wallet count
   };
 
