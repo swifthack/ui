@@ -6,6 +6,8 @@ const WalletsMaintenancePage = ({ customers, onAddCustomerWallet }) => {
   const [isModalOpen, setIsModalOpen] = useState(false); // State to control modal visibility
 
   // Mock data for all wallets for admin view
+
+
   const [allWallets, setAllWallets] = useState([
     { id: 'w001', owner: 'Alice Smith', address: '0xabc...123', currency: 'USDC', balance: '10500.00', status: 'Active' },
     { id: 'w002', owner: 'Bob Johnson', address: '0xdef...456', currency: 'USDT', balance: '5200.50', status: 'Active' },
@@ -18,6 +20,34 @@ const WalletsMaintenancePage = ({ customers, onAddCustomerWallet }) => {
     { id: 'w009', owner: 'Ivan Miller', address: '0xzaq...567', currency: 'USDC', balance: '60.00', status: 'Active' },
     { id: 'w010', owner: 'Judy Wilson', address: '0xwsx...890', currency: 'BUSD', balance: '120.00', status: 'Active' },
   ]);
+
+  // Filter states for each column
+  const [filters, setFilters] = useState({
+    id: '',
+    owner: '',
+    address: '',
+    currency: '',
+    balance: '',
+    status: '',
+  });
+
+  // Handle filter input changes
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Filtered wallets based on filters
+  const filteredWallets = allWallets.filter((wallet) => {
+    return (
+      wallet.id.toLowerCase().includes(filters.id.toLowerCase()) &&
+      wallet.owner.toLowerCase().includes(filters.owner.toLowerCase()) &&
+      wallet.address.toLowerCase().includes(filters.address.toLowerCase()) &&
+      (filters.currency === '' || wallet.currency === filters.currency) &&
+      (filters.status === '' || wallet.status === filters.status) &&
+      (filters.balance === '' || wallet.balance.includes(filters.balance))
+    );
+  });
 
   const handleSaveWallet = (newWallet, customerId) => {
     setAllWallets([...allWallets, newWallet]);
@@ -65,9 +95,79 @@ const WalletsMaintenancePage = ({ customers, onAddCustomerWallet }) => {
                   Actions
                 </th>
               </tr>
+              {/* Filter row */}
+              <tr>
+                <th className="px-6 py-2">
+                  <input
+                    type="text"
+                    name="id"
+                    value={filters.id}
+                    onChange={handleFilterChange}
+                    placeholder="Search ID"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                  />
+                </th>
+                <th className="px-6 py-2">
+                  <input
+                    type="text"
+                    name="owner"
+                    value={filters.owner}
+                    onChange={handleFilterChange}
+                    placeholder="Search Owner"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                  />
+                </th>
+                <th className="px-6 py-2">
+                  <input
+                    type="text"
+                    name="address"
+                    value={filters.address}
+                    onChange={handleFilterChange}
+                    placeholder="Search Address"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs font-mono"
+                  />
+                </th>
+                <th className="px-6 py-2">
+                  <select
+                    name="currency"
+                    value={filters.currency}
+                    onChange={handleFilterChange}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                  >
+                    <option value="">All</option>
+                    <option value="USDC">USDC</option>
+                    <option value="USDT">USDT</option>
+                    <option value="DAI">DAI</option>
+                    <option value="BUSD">BUSD</option>
+                  </select>
+                </th>
+                <th className="px-6 py-2">
+                  <input
+                    type="text"
+                    name="balance"
+                    value={filters.balance}
+                    onChange={handleFilterChange}
+                    placeholder="Search Balance"
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                  />
+                </th>
+                <th className="px-6 py-2">
+                  <select
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                  >
+                    <option value="">All</option>
+                    <option value="Active">Active</option>
+                    <option value="Suspended">Suspended</option>
+                  </select>
+                </th>
+                <th></th>
+              </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {allWallets.map((wallet) => (
+              {filteredWallets.map((wallet) => (
                 <tr key={wallet.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{wallet.id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{wallet.owner}</td>
