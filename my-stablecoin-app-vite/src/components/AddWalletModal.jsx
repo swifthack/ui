@@ -1,35 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
-const AddWalletModal = ({ isOpen, onClose, customers, onSaveWallet }) => {
+// fetchCustomers utility (copy from CustomerManagementPage)
+const fetchCustomers = async () => {
+  try {
+    const res = await fetch('/api/customers', {
+      headers: { 'accept': '*/*' }
+    });
+    if (!res.ok) throw new Error('Network response was not ok');
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+};
+
+const AddWalletModal = ({ isOpen, onClose, onSaveWallet }) => {
   const [ownerId, setOwnerId] = useState('');
   const [currency, setCurrency] = useState('USDC');
+  const [customers, setCustomers] = useState([]);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    if (isOpen) {
+      fetchCustomers().then(setCustomers);
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!ownerId) {
       alert('Please select an owner for the new wallet.');
       return;
     }
 
-    const selectedCustomer = customers.find(cust => cust.id === ownerId);
+    const selectedCustomer = customers.find(cust => cust.id === ownerId || cust.CUST_ID === ownerId);
     if (!selectedCustomer) {
       alert('Selected customer not found.');
       return;
     }
 
-    const newWallet = {
-      id: `w${Date.now()}`, // Simple ID generation
-      owner: selectedCustomer.name,
-      address: `0x${Math.random().toString(16).slice(2, 11)}...${Math.random().toString(16).slice(2, 5)}`, // Mock address
-      currency: currency,
+    // Prepare wallet data for API
+    const walletData = {
+      walletId: `w${Date.now()}`,
+      owner: selectedCustomer.email,
+      walletAddress: `0x${Math.random().toString(16).slice(2, 11)}${Math.random().toString(16).slice(2, 5)}`,
+      stablecoinCurrency: currency,
       balance: '0.00',
       status: 'Active',
+      createdBy: 'admin',
+      approvers: [
+        '0xA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0',
+        '0xZ9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0'
+      ],
+      approvalRequired: 2,
     };
-    onSaveWallet(newWallet, selectedCustomer.id);
-    onClose();
-    setOwnerId('');
-    setCurrency('USDC');
+
+    try {
+      const response = await fetch('/api/wallet/create', {
+        method: 'POST',
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(walletData),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.message || 'Failed to create wallet');
+        return;
+      }
+      // Optionally handle response
+      onSaveWallet(walletData, ownerId);
+      onClose();
+      setOwnerId('');
+      setCurrency('USDC');
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    }
   };
 
   if (!isOpen) return null;
@@ -48,7 +95,7 @@ const AddWalletModal = ({ isOpen, onClose, customers, onSaveWallet }) => {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="walletOwner" className="block text-sm font-medium text-gray-700 mb-1">Wallet Owner</label>
+            <label htmlFor="walletOwner" className="block text-sm font-medium text-gray-700 mb-1">Wallet Owner (Email)</label>
             <select
               id="walletOwner"
               value={ownerId}
@@ -58,8 +105,8 @@ const AddWalletModal = ({ isOpen, onClose, customers, onSaveWallet }) => {
             >
               <option value="">Select an owner</option>
               {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name} ({customer.email})
+                <option key={customer.CUST_ID || customer.id} value={customer.CUST_ID || customer.id}>
+                  {customer.email}
                 </option>
               ))}
             </select>
