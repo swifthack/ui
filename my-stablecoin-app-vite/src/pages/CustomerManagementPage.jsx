@@ -15,24 +15,26 @@ const CustomerManagementPage = ({ onSaveCustomer, onDeleteCustomer, onUpdateCust
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/customers', {
-      headers: {
-        'accept': '*/*'
-      }
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Network response was not ok');
-        return res.json();
-      })
-      .then((data) => {
-        setCustomers(data.data || []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
+  const fetchCustomers = async (reverse = false) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/customers', {
+        headers: { 'accept': '*/*' }
       });
+      if (!res.ok) throw new Error('Network response was not ok');
+      const data = await res.json();
+      const customersList = data.data || [];
+      setCustomers(reverse ? customersList.reverse() : customersList);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
   }, []);
 
   const handleEditCustomerClick = (customer) => {
@@ -148,7 +150,10 @@ const CustomerManagementPage = ({ onSaveCustomer, onDeleteCustomer, onUpdateCust
       {/* Customer Add/Edit Modal */}
       <CustomerFormModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={async () => {
+          setIsModalOpen(false);
+          await fetchCustomers(true);
+        }}
         customerData={currentCustomer}
         onSave={onSaveCustomer}
       />

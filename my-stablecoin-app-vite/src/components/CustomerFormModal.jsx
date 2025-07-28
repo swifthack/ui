@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import CustomAlert from './CustomAlert';
 
 const CustomerFormModal = ({ isOpen, onClose, customerData, onSave }) => {
   const [name, setName] = useState(customerData?.name || '');
@@ -8,20 +9,44 @@ const CustomerFormModal = ({ isOpen, onClose, customerData, onSave }) => {
   const [glei, setGlei] = useState(customerData?.glei || ''); // New state for GLEI
   const [status, setStatus] = useState(customerData?.status || 'Active');
 
-  const handleSubmit = (e) => {
+  const [alert, setAlert] = useState(null);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newCustomer = {
-      id: customerData?.id || `cust${Date.now()}`, // Simple ID generation
-      name,
+      CUST_ID: name,//customerData?.id || `cust${Date.now()}`,
+      UserName: name,
       email,
       organization,
-      glei, // Include GLEI in the new customer object
-      status,
-      wallets: customerData?.wallets || 0, // Preserve existing wallet count or set to 0
-      lastLogin: customerData?.lastLogin || new Date().toISOString().slice(0, 10), // Current date for new, preserve for existing
+      GLEI: glei,
+      status: status.toLowerCase(),
+      wallets: customerData?.wallets || 0,
+      last_login: customerData?.lastLogin || new Date().toISOString(),
     };
-    onSave(newCustomer);
-    onClose(); // Close modal after saving
+
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: {
+          'accept': '*/*',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCustomer),
+      });
+      const result = await response.json();
+      setAlert({
+        type: response.ok ? 'success' : 'error',
+        message: response.ok ? 'Customer saved successfully!' : (result?.message || 'Failed to save customer'),
+      });
+      // if (response.ok) {
+      //   // onSave(newCustomer); // Uncomment if you want to use onSave
+      //   setTimeout(() => {
+      //     onClose();
+      //   }, 2000); // Show alert for 2 seconds
+      // }
+    } catch (error) {
+      setAlert({ type: 'error', message: error.message || 'Network error' });
+    }
   };
 
   if (!isOpen) return null;
@@ -38,7 +63,14 @@ const CustomerFormModal = ({ isOpen, onClose, customerData, onSave }) => {
             <X size={24} />
           </button>
         </div>
+        {alert && alert.message && (
+          <CustomAlert type={alert.type || 'info'} message={alert.message} open={alert?.type}
+
+            onClose={() => { setAlert(null); onClose(); }}
+          />
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ...existing code... */}
           <div>
             <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
             <input
