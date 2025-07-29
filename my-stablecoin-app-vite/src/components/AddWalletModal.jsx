@@ -56,13 +56,16 @@ const AddWalletModal = ({ isOpen, onClose, onSaveWallet }) => {
     };
 
     try {
-      const response = await fetch('/api/wallet/create', {
+      const response = await fetch('/api/wallets/createOwnerAddress', {
         method: 'POST',
         headers: {
           'accept': '*/*',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(walletData),
+        body: JSON.stringify({
+          "address":'0xA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0',
+          "privateKey":'0xZ9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0',
+        }),
       });
       if (!response.ok) {
         const error = await response.json();

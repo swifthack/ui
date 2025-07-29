@@ -3,7 +3,7 @@
     setFilterCurrencyForTransactions(currency);
     setActivePage('transactions');
   };
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Home, DollarSign, Repeat, Wallet, Settings, TrendingUp, Menu, X, User, LogOut } from 'lucide-react';
 
 // Import page components - all with .jsx extension
@@ -20,6 +20,8 @@ const App = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // State to manage sidebar visibility on mobile
   const [activePage, setActivePage] = useState('dashboard'); // State to manage active page
   const [currentPersona, setCurrentPersona] = useState(null); // Null means not logged in
+  const [customerIdList, setCustomerIdList] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false); // New state for login status
   const [filterCurrencyForTransactions, setFilterCurrencyForTransactions] = useState(null); // New state for transaction filtering
 
@@ -73,6 +75,19 @@ const App = () => {
     setActivePage(personaType === 'customer' ? 'dashboard' : 'admin-dashboard');
     setFilterCurrencyForTransactions(null); // Clear any transaction filters on login
   };
+
+  // Fetch customer IDs when persona is set to customer
+  useEffect(() => {
+    if (currentPersona === 'customer') {
+      fetch('/api/customers', { headers: { 'accept': '*/*' } })
+        .then(res => res.json())
+        .then(data => {
+          const list = Array.isArray(data.data) ? data.data : [];
+          setCustomerIdList(list.map(c => c.CUST_ID));
+        })
+        .catch(() => setCustomerIdList([]));
+    }
+  }, [currentPersona]);
 
   // Logout function
   const handleLogout = () => {
@@ -290,21 +305,34 @@ const App = () => {
         <h1 className="text-xl font-bold text-indigo-700">StablePay</h1>
         {isLoggedIn && (
           <div className="flex items-center space-x-3">
+            <select
+              value={currentPersona}
+              onChange={e => {
+                setCurrentPersona(e.target.value);
+                setActivePage(e.target.value === 'customer' ? 'dashboard' : 'admin-dashboard');
+                setIsSidebarOpen(false);
+              }}
+              className="p-2 rounded-md bg-white border border-gray-300 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="customer">Customer</option>
+              <option value="bankAdmin">Bank Admin</option>
+            </select>
+            {/* Customer ID dropdown for mobile */}
+            {currentPersona === 'customer' && customerIdList.length > 0 && (
               <select
-                  value={currentPersona}
-                  onChange={(e) => {
-                      setCurrentPersona(e.target.value);
-                      setActivePage(e.target.value === 'customer' ? 'dashboard' : 'admin-dashboard');
-                      setIsSidebarOpen(false);
-                  }}
-                  className="p-2 rounded-md bg-white border border-gray-300 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={selectedCustomerId}
+                onChange={e => setSelectedCustomerId(e.target.value)}
+                className="p-2 rounded-md bg-white border border-gray-300 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                  <option value="customer">Customer</option>
-                  <option value="bankAdmin">Bank Admin</option>
+                <option value="">Select Customer ID</option>
+                {customerIdList.map(id => (
+                  <option key={id} value={id}>{id}</option>
+                ))}
               </select>
-              <button onClick={toggleSidebar} className="p-2 rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
+            )}
+            <button onClick={toggleSidebar} className="p-2 rounded-md text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         )}
       </div>
@@ -324,17 +352,30 @@ const App = () => {
 
           {/* Persona Selector for Desktop */}
           <div className="hidden lg:block mb-6 text-center">
+            <select
+              value={currentPersona}
+              onChange={e => {
+                setCurrentPersona(e.target.value);
+                setActivePage(e.target.value === 'customer' ? 'dashboard' : 'admin-dashboard');
+              }}
+              className="w-full p-2 rounded-md bg-indigo-700 border border-indigo-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="customer">Customer</option>
+              <option value="bankAdmin">Bank Admin</option>
+            </select>
+            {/* Customer ID dropdown for desktop */}
+            {currentPersona === 'customer' && customerIdList.length > 0 && (
               <select
-                  value={currentPersona}
-                  onChange={(e) => {
-                      setCurrentPersona(e.target.value);
-                      setActivePage(e.target.value === 'customer' ? 'dashboard' : 'admin-dashboard');
-                  }}
-                  className="w-full p-2 rounded-md bg-indigo-700 border border-indigo-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={selectedCustomerId}
+                onChange={e => setSelectedCustomerId(e.target.value)}
+                className="w-full mt-2 p-2 rounded-md bg-indigo-700 border border-indigo-600 text-white text-base focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                  <option value="customer">Customer</option>
-                  <option value="bankAdmin">Bank Admin</option>
+                <option value="">Select Customer ID</option>
+                {customerIdList.map(id => (
+                  <option key={id} value={id}>{id}</option>
+                ))}
               </select>
+            )}
           </div>
 
           {/* Navigation Links */}
