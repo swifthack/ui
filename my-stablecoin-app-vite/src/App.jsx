@@ -13,7 +13,8 @@ import TransactionsPage from './pages/TransactionsPage.jsx';
 import BankAdminDashboardPage from './pages/BankAdminDashboardPage.jsx';
 import WalletsMaintenancePage from './pages/WalletsMaintenancePage.jsx';
 import CustomerManagementPage from './pages/CustomerManagementPage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
+import DigitalExchangePage from './pages/DigitalExchangePage.jsx';
+import { ArrowRightLeft } from 'lucide-react';
 
 // Main App component for the Stablecoin Payments Dashboard
 const App = () => {
@@ -109,6 +110,9 @@ const App = () => {
       return <LoginPage onLogin={handleLogin} />;
     }
 
+    if (activePage === 'digital-exchange') {
+      return <DigitalExchangePage />;
+    }
     if (currentPersona === 'customer') {
       switch (activePage) {
         case 'dashboard':
@@ -501,6 +505,23 @@ const App = () => {
                 </>
               )}
             </ul>
+            {/* Exchange User Category - visible to all personas */}
+            <div className="mt-8">
+              <h4 className="text-xs font-semibold text-indigo-200 uppercase mb-2">Exchange User</h4>
+              <ul>
+                <li>
+                  <a
+                    href="#"
+                    onClick={() => { setActivePage('digital-exchange'); setIsSidebarOpen(false); }}
+                    className={`flex items-center p-3 rounded-lg transition-colors duration-200 group
+                      ${activePage === 'digital-exchange' ? 'bg-indigo-700' : 'hover:bg-indigo-700'}`}
+                  >
+                    <ArrowRightLeft size={20} className="mr-3 text-indigo-300 group-hover:text-white" />
+                    <span className="font-medium text-lg">Digital Exchange</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
           </nav>
 
           {/* Close button for mobile sidebar */}

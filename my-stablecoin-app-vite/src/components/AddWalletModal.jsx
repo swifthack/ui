@@ -56,20 +56,56 @@ const AddWalletModal = ({ isOpen, onClose, onSaveWallet }) => {
     };
 
     try {
-      const response = await fetch('/api/wallets/createOwnerAddress', {
+      // 1. Get address/privateKey for the selected customer
+      const email = selectedCustomer.email;
+      let getAddrRes = await fetch(`/api/wallet/getOwnerAddress?username=${encodeURIComponent(email)}`, {
+        headers: { 'accept': '*/*', 'Content-Type': 'application/json' }
+      });
+      let addrData;
+      if (getAddrRes.status === 404) {
+        // Create owner address if not found
+        const createOwnerRes = await fetch('/api/wallet/createOwnerAddress', {
+          method: 'POST',
+          headers: { 'accept': '*/*', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_name: email }),
+        });
+        if (!createOwnerRes.ok) {
+          const error = await createOwnerRes.json().catch(() => ({}));
+          alert(error.message || 'Failed to create owner address');
+          return;
+        }
+        // Try getOwnerAddress again
+        getAddrRes = await fetch(`/api/wallet/getOwnerAddress?username=${encodeURIComponent(email)}`, {
+          headers: { 'accept': '*/*', 'Content-Type': 'application/json' }
+        });
+      }
+      if (!getAddrRes.ok) {
+        const error = await getAddrRes.json().catch(() => ({}));
+        alert(error.message || 'Failed to get owner address');
+        return;
+      }
+      addrData = await getAddrRes.json();
+      if (!addrData.address) {
+        alert('No address returned for owner.');
+        return;
+      }
+      // 2. Create custodial wallet with the fetched address and required fields
+      const createRes = await fetch('/api/createCustodialWallet', {
         method: 'POST',
         headers: {
           'accept': '*/*',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          "address":'0xA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0',
-          "privateKey":'0xZ9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4J3I2H1G0',
+          user_name: email,
+          ownerAddress: addrData.address,
+          coinType: currency,
+          vaspUser: 'admin',
         }),
       });
-      if (!response.ok) {
-        const error = await response.json();
-        alert(error.message || 'Failed to create wallet');
+      if (!createRes.ok) {
+        const error = await createRes.json().catch(() => ({}));
+        alert(error.message || 'Failed to create custodial wallet');
         return;
       }
       // Optionally handle response

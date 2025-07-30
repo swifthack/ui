@@ -30,9 +30,7 @@ const WalletsPage = ({ navigateToTransactionsForWallet }) => { // Receive new pr
   const [depositInputs, setDepositInputs] = useState({});
   const [approveInputs, setApproveInputs] = useState({});
   const [transferInputs, setTransferInputs] = useState({});
-  // New wallet creation state
-  const [newWalletAddress, setNewWalletAddress] = useState('');
-  const [newWalletPrivateKey, setNewWalletPrivateKey] = useState('');
+  // New wallet creation loading state
   const [createWalletLoading, setCreateWalletLoading] = useState(false);
   // Loading and alert state for deposit
   const [depositLoading, setDepositLoading] = useState({}); // { [walletId]: boolean }
@@ -68,19 +66,33 @@ const WalletsPage = ({ navigateToTransactionsForWallet }) => { // Receive new pr
 
   // Inline deposit handler
   const handleDeposit = async (walletId, currency) => {
-    const amount = parseFloat(depositInputs[walletId] || '');
-    if (!amount || amount <= 0) return;
+    const amount = depositInputs[walletId];
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) return;
     const wallet = wallets.find(w => w.wallet_id === walletId);
     if (!wallet) return;
+    // Use first wallet's owner as user_name (as in create wallet)
+    const userName = wallets.length && wallets[0].owner ? wallets[0].owner : undefined;
+    if (!userName) {
+      setAlertType('error');
+      setAlertMessage('No user_name found in wallet list.');
+      setAlertOpen(true);
+      return;
+    }
     setDepositLoading(l => ({ ...l, [walletId]: true }));
     setAlertOpen(false);
     try {
       const res = await fetch('/api/mint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'accept': '*/*' },
-        body: JSON.stringify({ toAddress: wallet.wallet_address, amount }),
+        body: JSON.stringify({
+          user_name: userName,
+          toAddress: wallet.wallet_address,
+          amount: amount,
+          coinType: wallet.stablecoin_currency
+        }),
       });
-      if (!res.ok) throw new Error('Mint failed');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Mint failed');
       // Fetch updated balance from /api/<wallet_address>/balance
       let newBalance = null;
       try {
@@ -92,12 +104,16 @@ const WalletsPage = ({ navigateToTransactionsForWallet }) => { // Receive new pr
       } catch {}
       setWallets(wallets.map(w =>
         w.wallet_id === walletId
-          ? { ...w, balance: newBalance !== null ? newBalance : (parseFloat(w.balance) + amount).toFixed(2) }
+          ? { ...w, balance: newBalance !== null ? newBalance : (parseFloat(w.balance) + parseFloat(amount)).toFixed(2) }
           : w
       ));
       setDepositInputs({ ...depositInputs, [walletId]: '' });
       setAlertType('success');
-      setAlertMessage(`Successfully deposited ${amount} ${currency}`);
+      setAlertMessage(
+        data.txHash
+          ? <span>Deposit successful! TxHash: <span className="break-all">{data.txHash}</span></span>
+          : `Successfully deposited ${amount} ${currency}`
+      );
       setAlertOpen(true);
     } catch (err) {
       setAlertType('error');
@@ -111,25 +127,37 @@ const WalletsPage = ({ navigateToTransactionsForWallet }) => { // Receive new pr
   // Inline approve allowance handler
   // Inline approve allowance handler (API call)
   const handleApprove = async (walletId, currency) => {
-    const amount = parseFloat(approveInputs[walletId] || '');
-    if (!amount || amount <= 0) return;
+    const amount = approveInputs[walletId];
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) return;
     const wallet = wallets.find(w => w.wallet_id === walletId);
     if (!wallet) return;
+    // Use first wallet's owner as user_name
+    const userName = wallets.length && wallets[0].owner ? wallets[0].owner : undefined;
+    if (!userName) {
+      setAlertType('error');
+      setAlertMessage('No user_name found in wallet list.');
+      setAlertOpen(true);
+      return;
+    }
     setAlertOpen(false);
     try {
       const res = await fetch('/api/wallet/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'accept': '*/*' },
         body: JSON.stringify({
-          ownerWallet: wallet.wallet_address,
-          amount,
-          ownerPrivateKey: wallet.privateKey
+          user_name: userName,
+          amount: amount,
+          ownerPrivateKey: wallet.wallet_address
         })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Approve failed');
       setAlertType('success');
-      setAlertMessage(data.message || `Approved allowance of ${amount} ${currency}`);
+      setAlertMessage(
+        data.txHash
+          ? <span>Approve successful! TxHash: <span className="break-all">{data.txHash}</span></span>
+          : data.message || `Approved allowance of ${amount} ${currency}`
+      );
     } catch (err) {
       setAlertType('error');
       setAlertMessage('Approve failed: ' + (err.message || 'Unknown error'));
@@ -153,28 +181,27 @@ const WalletsPage = ({ navigateToTransactionsForWallet }) => { // Receive new pr
     alert(`Transferred ${amt} ${currency} to ${address}`);
   };
 
-  // Create new wallet handler
+  // Create new wallet handler (button, uses first wallet's owner as user_name)
   const handleCreateWallet = async () => {
-    if (!newWalletAddress || !newWalletPrivateKey) {
+    if (!wallets.length || !wallets[0].owner) {
       setAlertType('error');
-      setAlertMessage('Both address and private key are required.');
+      setAlertMessage('No owner found in wallet list.');
       setAlertOpen(true);
       return;
     }
     setCreateWalletLoading(true);
     setAlertOpen(false);
     try {
-      const res = await fetch('/api/wallets/createOwnerAddress', {
+      const res = await fetch('/api/wallet/createOwnerAddress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'accept': '*/*' },
-        body: JSON.stringify({ address: newWalletAddress, privateKey: newWalletPrivateKey }),
+        body: JSON.stringify({ user_name: wallets[0].owner }),
       });
-      if (!res.ok) throw new Error('Failed to create wallet');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to create wallet');
       setAlertType('success');
-      setAlertMessage('Wallet created successfully!');
+      setAlertMessage(data.message || 'Wallet created successfully!');
       setAlertOpen(true);
-      setNewWalletAddress('');
-      setNewWalletPrivateKey('');
       // Refresh wallets
       setLoading(true);
       fetch('/api/wallet', { headers: { 'accept': '*/*' } })
@@ -198,42 +225,16 @@ const WalletsPage = ({ navigateToTransactionsForWallet }) => { // Receive new pr
     <div className="p-6">
       <h2 className="text-3xl font-extrabold text-gray-800 mb-6">Your Wallets</h2>
 
-      {/* Accordion: Create Wallet */}
-      <div className="mb-4 bg-white rounded-xl shadow-md border border-gray-200 max-w-xl">
+      {/* Create New Wallet Button (uses first wallet's owner) */}
+      <div className="mb-4 bg-white rounded-xl shadow-md border border-gray-200 max-w-xl flex items-center justify-between px-6 py-4">
+        <span className="text-lg font-semibold text-gray-700">Create New Wallet</span>
         <button
-          className="w-full flex justify-between items-center px-6 py-4 text-lg font-semibold text-gray-700 focus:outline-none"
-          onClick={() => setAccordionOpen(a => ({ ...a, create: !a.create }))}
+          onClick={handleCreateWallet}
+          className={`bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 text-base font-semibold ${createWalletLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+          disabled={createWalletLoading}
         >
-          <span>Create New Wallet</span>
-          <span>{accordionOpen.create ? '▲' : '▼'}</span>
+          {createWalletLoading ? 'Creating...' : 'Create New Wallet'}
         </button>
-        {accordionOpen.create && (
-          <div className="px-6 pb-6 flex flex-col gap-3">
-            <input
-              type="text"
-              maxLength={50}
-              placeholder="Blockchain Address"
-              value={newWalletAddress}
-              onChange={e => setNewWalletAddress(e.target.value)}
-              className="border p-2 rounded w-full text-sm"
-            />
-            <input
-              type="text"
-              maxLength={50}
-              placeholder="Private Key"
-              value={newWalletPrivateKey}
-              onChange={e => setNewWalletPrivateKey(e.target.value)}
-              className="border p-2 rounded w-full text-sm"
-            />
-            <button
-              onClick={handleCreateWallet}
-              className={`bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 text-base font-semibold ${createWalletLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
-              disabled={createWalletLoading}
-            >
-              {createWalletLoading ? 'Creating...' : 'Create Wallet'}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Accordion: Wallet List */}
