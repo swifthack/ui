@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
+const truncateAddress = (address) => {
+  if (!address) return '';
+  return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+};
+
 const WithdrawModal = ({ isOpen, onClose, wallet, onWithdraw }) => {
   const [withdrawAmount, setWithdrawAmount] = useState('');
 
@@ -37,6 +42,16 @@ const WithdrawModal = ({ isOpen, onClose, wallet, onWithdraw }) => {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="text-sm text-gray-500 mb-4">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700">From Address:</span>
+              <span className="font-mono">{truncateAddress(wallet.owner_address)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-700">To Address:</span>
+              <span className="font-mono">{truncateAddress(wallet.wallet_address)}</span>
+            </div>
+          </div>
           <div>
             <label htmlFor="withdrawAmount" className="block text-sm font-medium text-gray-700 mb-1">Amount ({wallet.currency})</label>
             <input
